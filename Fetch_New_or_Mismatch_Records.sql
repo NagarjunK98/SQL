@@ -1,0 +1,20 @@
+'''
+Write a SQL query to fetch new rows from both src and tgt tables and not matching rows 
+'''
+
+# Approach-1
+WITH JOIN_TABLES AS (
+SELECT 
+  a.ID AS ID_1, A.NAME AS NAME_1, B.ID AS ID_2, B.NAME AS NAME_2
+FROM  SRC A FULL JOIN TGT B ON A.ID = B.ID
+)
+SELECT 
+COALESCE(ID_1, ID_2) AS id,
+CASE 
+	WHEN NAME_1 <> NAME_2 THEN 'MISMATCH'
+    WHEN NAME_1 IS NULL THEN 'NEW_TARGET'
+    WHEN NAME_2 IS NULL THEN 'NEW_SOURCE'
+    END AS NAME
+FROM JOIN_TABLES
+WHERE (ID_1=ID_2 AND NAME_1<>NAME_2) OR ID_1 IS NULL OR ID_2 IS NULL
+
