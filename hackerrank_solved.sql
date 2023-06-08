@@ -1,4 +1,4 @@
-'''
+
 1. Interviews https://www.hackerrank.com/challenges/interviews/submissions/code/319331270
 
 2. The PADS https://www.hackerrank.com/challenges/the-pads/submissions/code/146209124
@@ -20,5 +20,3 @@
 10. Context board https://www.hackerrank.com/challenges/contest-leaderboard/submissions/code/319484571
 
 11. Placements https://www.hackerrank.com/challenges/placements/submissions/code/319289020
-
-'''
