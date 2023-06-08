@@ -20,3 +20,5 @@
 10. Context board https://www.hackerrank.com/challenges/contest-leaderboard/submissions/code/319484571
 
 11. Placements https://www.hackerrank.com/challenges/placements/submissions/code/319289020
+
+12. Symmetric pairs https://www.hackerrank.com/challenges/symmetric-pairs/submissions/code/330805978
