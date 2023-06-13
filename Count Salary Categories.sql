@@ -15,6 +15,7 @@ Write an SQL query to report the number of bank accounts of each salary category
 "High Salary": All the salaries strictly greater than $50000.
 The result table must contain all three categories. If there are no accounts in a category, then report 0.
 '''
+# Solution-1 - Executed on SQL Server
 WITH ADD_FLAG AS (
     SELECT account_id, income,
     CASE 
@@ -36,3 +37,29 @@ SUM(CASE WHEN B.category IS NULL THEN 0 ELSE 1 END) AS accounts_count
 FROM CATEGORY A LEFT JOIN ADD_FLAG B
 ON A.cagr = B.category
 GROUP BY A.cagr
+
+# Solution-2 - Executed on MySQL 
+
+WITH ADD_FLAG AS (
+    SELECT category, COUNT(account_id) AS accounts_count FROM (
+    SELECT account_id,
+    CASE 
+        WHEN income < 20000 THEN 'Low Salary'
+        WHEN income >= 20000 AND income <= 50000 THEN 'Average Salary'
+        ELSE 'High Salary'
+    END AS category
+    FROM Accounts
+    ) A
+    GROUP BY category
+),
+CATEGORY AS (
+    SELECT 'Low Salary' AS cagr
+    UNION
+    SELECT 'Average Salary' AS cagr
+     UNION
+    SELECT 'High Salary' AS cagr
+)
+SELECT A.cagr AS category, 
+CASE WHEN B.category IS NULL THEN 0 ELSE accounts_count END AS accounts_count
+FROM CATEGORY A LEFT JOIN ADD_FLAG B
+ON A.cagr = B.category
