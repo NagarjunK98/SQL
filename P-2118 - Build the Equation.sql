@@ -74,6 +74,8 @@ WITH ROW_LEVEL_EQ AS (
 MAX_ROW AS (
     SELECT MAX(rn) AS max_rn FROM ROW_LEVEL_EQ
 ),
+/* If you use CONCAT in the recursive term of a rcte, since the output type of concat is varchar(MAX), 
+you only need to cast the column in the initial query*/
 RECURSIVE_CTE AS (
     SELECT CAST(equation AS VARCHAR(MAX)) AS equation, 1 as row FROM ROW_LEVEL_EQ WHERE rn=1
     UNION ALL
