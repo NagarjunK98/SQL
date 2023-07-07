@@ -37,7 +37,7 @@ Product 2 was ordered one time in 2022. We do not include it in the answer.
 '''
 
 SELECT DISTINCT product_id FROM (
-    SELECT product_id, year(purchase_date) as year from orders
+    SELECT product_id, year(purchase_date) AS year FROM orders
     GROUP by product_id, year(purchase_date) HAVING COUNT(*)>=3
 ) A
 GROUP BY product_id HAVING COUNT(*)>=2
