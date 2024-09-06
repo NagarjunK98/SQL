@@ -35,20 +35,6 @@ WITH recursive_cte AS (
 )
 SELECT no FROM recursive_cte ORDER BY no
 
--- Solution - 2
-''' We need to generate number between min & max and print n number of times'''
-WITH generate_no as (
-  SELECT 1 AS no, 1 AS c 
-  UNION ALL
-  SELECT no+1 AS no, no+1 AS c FROM generate_no WHERE no < 3
-),
-recursive_cte AS (
-    SELECT no, 1 AS count FROM generate_no
-    UNION ALL
-    SELECT no, count+1 AS count FROM recursive_cte WHERE count < no 
-)
-SELECT no FROM recursive_cte order by no
-
 ###############################################################################################
 
 ''' 
