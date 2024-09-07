@@ -95,3 +95,120 @@ FROM CTE A INNER JOIN FILTER_EMAIL B ON A.lower_email = B.lower_email
 WHERE A.is_lower = 1
 ORDER BY A.employee_id
  
+
+'''
+Write an SQL query to find percentage increase in covid cases versus cumulative cases as of prior(previous) month
+covid_case(records_date, cases)
+'''
+WITH MONTH_AGG AS (
+    SELECT MONTH(record_date) AS month_no, SUM(cases) as total_cases
+    FROM covid_cases
+    GROUP BY MONTH(record_date)
+),
+FIND_CUMULATIVE_CASES AS (
+    SELECT month_no, total_cases, 
+    SUM(total_cases) OVER(ORDER BY month_no ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) as cumulative_sum
+    FROM MONTH_AGG
+)
+SELECT month_no, ROUND(cumulative_sum*100.0/total_cases, 1) AS percentage FROM FIND_CUMULATIVE_CASES
+
+
+
+'''
+Write an SQL query to remove duplicate path from city_distance table
+city_distance(distance, source, destination)
+'''
+SELECT distance, source, destination 
+FROM city_distance WHERE source < destination
+UNION
+SELECT distance, destination, source 
+FROM city_distance WHERE source > destination
+
+
+'''
+Write a query to find busiest route with total ticket count
+oneway_round='O' -> one way trip
+oneway_round='R' -> Round trip
+NOTE DEL -> BOM is different route from BOM -> DEL
+
+tickets(airline_number, origin, destination, oneway_round, ticket_count)
+'''
+WITH CTE AS (
+    SELECT origin, destination, SUM(ticket_count) as total_count FROM (
+        SELECT origin, destination, ticket_count FROM tickets WHERE oneway_round = 'O'
+        UNION ALL
+        SELECT origin as origin, destination as destination, ticket_count FROM tickets WHERE oneway_round = 'R' AND origin < destination
+        UNION ALL
+        SELECT destination as origin, origin as destination, ticket_count FROM tickets WHERE oneway_round = 'R' AND origin > destination
+        ) A GROUP BY origin, destination
+    )   
+SELECT origin, destination, total_count FROM (
+    SELECT origin, destination, total_count, RANK() OVER(ORDER BY total_count DESC) as rn
+    FROM CTE
+) A WHERE rn=1
+
+
+
+'''
+Write a SQL query to find out supplier_id, product_id, no of days and starting date of record_date for which stock quantity is < 50 for 2 or more consecutive days
+
+stock(supplier_id, product_id, record_date, stock_quantity)
+'''
+-- First find the previous date, if previous_date not present assign current record_date
+WITH CTE AS (
+  SELECT supplier_id, product_id, record_date, LAG(record_date, 1, record_date) over(partition by supplier_id, product_id ORDER BY record_date) as prev_date
+  from stock WHERE stock_quantity < 50
+),
+-- find days difference between prev_date & record_date
+CTE1 AS (
+  SELECT supplier_id, product_id, record_date, DATEDIFF(DAY, prev_date, record_date) as daysdiff
+  from CTE
+),
+-- Assign a flag based on daysdiff. if record_date are consecutive, then daysdiff will be 0 or 1, hence if daysdiff <=1 assign 0 else 1. 1 indicates starting of new group
+CTE2  AS (
+  SELECT supplier_id, product_id, record_date, 
+  CASE WHEN daysdiff <=1 THEN 0 ELSE 1 END AS flag 
+  FROM CTE1
+),
+-- Add group_id by calculating running sum on flag column
+CTE3 AS (
+  SELECT *, SUM(flag) over(partition by supplier_id, product_id ORDER BY record_date) as group_id
+  FROM CTE2
+)
+-- Group by supplier_id and product_id and find count(*), and min(record_date) with atleast 2 consecutive days 
+SELECT supplier_id, product_id, COUNT(*), MIN(record_date) FROM CTE3
+GROUP BY supplier_id, product_id, group_id HAVING COUNT(*) >= 2
+ORDER BY supplier_id, product_id
+
+
+'''
+Write a SQL query to print maximum number of discounted tours any 1 family in the families table can choose from.
+
+families(id, name, family_size)
+countries(id, name, min_size)
+'''
+SELECT COUNT(*) FROM countries WHERE min_size <= (SELECT MAX(family_size) FROM families)
+
+
+-- Along with MIN_SIZE, if we have MAX_SIZE
+SELECT MAX(count) FROM (
+    SELECT A.name, COUNT(*) as count 
+    FROM families A INNER JOIN countries B
+    ON A.family_size BETWEEN B.min_size AND B.MAX_SIZE
+    GROUP BY A.name
+) A
+
+
+'''
+Write a SQL query to print best movie in each genre along with average rating printing in stars(****). 
+
+movies(id, title, genre)
+reviews(movie_id, rating)
+'''
+SELECT genre, title, REPLICATE('*', avg_rating) as stars 
+FROM (
+  SELECT A.genre, A.title, ROUND(AVG(B.rating), 0) as avg_rating, ROW_NUMBER() OVER(PARTITION BY A.genre ORDER BY AVG(B.rating) DESC) AS rank
+  from movies A LEFT JOIN reviews B ON A.id = B.movie_id
+  GROUP BY A.genre, A.title
+) A 
+WHERE A.rank=1
