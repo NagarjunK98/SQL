@@ -37,3 +37,61 @@ SELECT A.user_id, A.friend_id, B.page_id FROM friends A INNER JOIN likes B ON A.
 SELECT DISTINCT A.user_id, A.page_id
 FROM CTE A LEFT JOIN likes B ON A.user_id = B.user_id AND A.page_id = B.page_id
 WHERE B.page_id IS NULL
+
+
+'''
+You have game of thrones tables. kings & battle
+battle (battle_id, battle_name, attacker_king, defender_king, attacker_outcome, region)
+kings(k_no, king_name, house)
+
+Find out in each region, which house has won maximum no of battles
+'''
+
+-- Solution-1
+WITH WINNERS AS (
+    SELECT region, CASE WHEN attacker_outcome =  1 THEN attacker_king ELSE defender_king END AS winner_id 
+    from battle 
+),
+GROUP_BY AS (
+    SELECT A.region, B.house, COUNT(B.k_no) AS total 
+    FROM WINNERS A LEFT JOIN king B On A.winner_id = B.k_no
+    GROUP BY region, house
+)
+SELECT region, house, total FROM (
+	SELECT region, house, total, RANK() OVER(PARTITION BY region ORDER BY total DESC) as rank
+    FROM GROUP_BY
+) A 
+WHERE rank = 1
+
+--Solution-2: Using case stmt in join clause
+WITH WINNERS AS (
+    SELECT A.region, B.house, COUNT(B.k_no) AS total
+    FROM battle A LEFT JOIN king B 
+    ON B.k_no = CASE WHEN attacker_outcome =  1 THEN attacker_king ELSE defender_king END
+    GROUP BY A.region, B.house
+)
+SELECT region, house, total FROM (
+	SELECT region, house, total, RANK() OVER(PARTITION BY region ORDER BY total DESC) as rank
+    FROM WINNERS
+) A 
+WHERE rank = 1
+
+
+
+'''
+We have employee table (employee_id, employee_name, email_id). 
+Find out all lower case email ids which are duplicate in the table
+'''
+WITH CTE AS (
+    SELECT employee_id, email_id, LOWER(email_id) as lower_email,
+    CASE WHEN ASCII(SUBSTRING(email_id, 0, 2)) BETWEEN 65 AND 91 THEN 0  ELSE 1 END as is_lower
+    FROM employees
+),
+FILTER_EMAIL AS (
+  SELECT lower_email FROM CTE GROUP BY lower_email HAVING COUNT(*)>1
+)
+SELECT A.employee_id, A.email_id 
+FROM CTE A INNER JOIN FILTER_EMAIL B ON A.lower_email = B.lower_email
+WHERE A.is_lower = 1
+ORDER BY A.employee_id
+ 
