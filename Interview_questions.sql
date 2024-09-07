@@ -212,3 +212,33 @@ FROM (
   GROUP BY A.genre, A.title
 ) A 
 WHERE A.rank=1
+
+
+'''
+Write a SQL query to split name into first name, middle name, and last name. If middle and last name not found, put NULL
+'''
+
+-- First number of spaces(0 -> onlyFirst name, 1 -> First and last name, 2 -> first, middle and last name)
+WITH no_of_spaces as (
+  SELECT customer_name, 
+  (len(customer_name) - len(replace(customer_name, ' ', '') )) AS no_of_spaces,
+  CHARINDEX(' ', customer_name) as first_space_index,
+  CHARINDEX(' ', customer_name, CHARINDEX(' ', customer_name)+1) as second_space_index
+  FROM customers
+)
+SELECT 
+CASE 
+	WHEN no_of_spaces = 0 THEN customer_name
+    ELSE SUBSTRING(customer_name, 1, first_space_index)
+    END AS FIRST_NAME,
+CASE 
+	WHEN no_of_spaces = 0 THEN NULL
+    WHEN no_of_spaces = 1 THEN NULL
+    ELSE SUBSTRING(customer_name, first_space_index+1,len(customer_name)-second_space_index+1)
+    END AS MIDDLE_NAME,
+CASE 
+	WHEN no_of_spaces = 0 THEN NULL
+    WHEN no_of_spaces = 1 THEN SUBSTRING(customer_name, first_space_index+1, len(customer_name)-first_space_index+1)
+   ELSE SUBSTRING(customer_name, second_space_index+1, len(customer_name)-second_space_index+1)
+    END AS LAST_NAME
+FROM no_of_spaces
