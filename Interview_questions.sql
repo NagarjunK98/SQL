@@ -242,3 +242,129 @@ CASE
    ELSE SUBSTRING(customer_name, second_space_index+1, len(customer_name)-second_space_index+1)
     END AS LAST_NAME
 FROM no_of_spaces
+
+
+'''
+Write a SQL query to get distribution of games(% of total games) based on social interaction that is happening during the games.
+No social interaction(no msgs, emojis or gifts during game)
+One sided interaction(messages, emojis or gifts sent during game by only one player)
+Both sided interaction without custom_types messages
+Both sided interaction with custom_typed messages from at least one player
+
+user_interaction(user_id, event, date, interaction_type, game_id, timestamp)
+'''
+
+-- Solution-1
+WITH no_interaction as (
+    SELECT game_id, 'no interaction' AS type from user_interactions GROUP BY game_id HAVING COUNT(interaction_type) = 0
+),
+one_side_int AS (
+    SELECT distinct game_id, 'one side interation' as type
+    from user_interactions 
+    WHERE interaction_type IS NOT NULL
+    GROUP BY game_id HAVING COUNT(DISTINCT user_id) = 1
+),
+both_side_inr_no_custom as (
+    SELECT distinct game_id, 'both side interaction no custom' AS type
+    from user_interactions 
+    GROUP BY game_id HAVING COUNT(DISTINCT user_id) = 2 AND COUNT(DISTINCT interaction_type) = 3
+),
+both_side_inr_custom AS (
+    SELECT distinct game_id, 'both side interaction with custom' as type
+    from user_interactions 
+    GROUP BY game_id HAVING COUNT(DISTINCT user_id) = 2 AND COUNT(DISTINCT interaction_type) = 4
+),
+union_all AS (
+    SELECT * FROM no_interaction
+    UNION ALL
+    SELECT * FROM one_side_int
+    UNION ALL
+    SELECT * FROM both_side_inr_no_custom
+    UNION ALL
+    SELECT * FROM both_side_inr_custom
+) 
+SELECT * FROM union_all
+SELECT type, ROUND(100.0*COUNT(*)/(SELECT COUNT(*) FROM union_all), 1) AS percentage
+FROM union_all
+GROUP BY type
+
+
+-- Solution-2: Optimized approach(logic is same, used case stmt)
+WITH union_all AS (
+SELECT game_id, 
+CASE 
+	WHEN COUNT(DISTINCT interaction_type) = 0 THEN 'no interaction'
+    WHEN COUNT(DISTINCT CASE WHEN interaction_type IS NOT NULL THEN user_id END) = 1 THEN 'one side interation'
+    WHEN COUNT(DISTINCT user_id) = 2 AND COUNT(CASE WHEN interaction_type='custom_typed' THEN user_id END) = 0 THEN 'both side interaction no custom'
+    WHEN COUNT(DISTINCT user_id) = 2 AND  COUNT(CASE WHEN interaction_type='custom_typed' THEN user_id END) >= 1 THEN 'both side interaction with custom'
+END AS type
+from user_interactions 
+GROUP BY game_id 
+)
+SELECT type, 100.0*COUNT(*)/COUNT(*) OVER() AS percentage
+FROM union_all
+GROUP BY type
+
+
+'''
+Write a SQL query to find words which are repeating more than once considering all the rows content column
+'''
+SELECT value AS word, COUNT(*) AS count 
+FROM content CROSS APPLY STRING_SPLIT(content, ' ')
+GROUP BY value HAVING COUNT(*) > 1
+
+
+'''
+Write an SQL query to print record is new in source table or target table. If id present in source and target table, check name value is same or not, if not same highlight as modified and skip records where id and name is same in both tables
+
+source(id, name)
+    1 A
+    2 B
+    3 C
+    4 D
+target(id, name)
+    1 A
+    2 B
+    4 X
+    5 F
+'''
+
+-- Solution-1
+WITH UNION_ALL AS (
+    SELECT id, name, 'source' as flag FROM source
+    UNION ALL
+    SELECT id, name, 'target' AS flag FROM target
+),
+REMOVED_SAME AS (
+    SELECT id, name FROM UNION_ALL GROUP BY id, name HAVING COUNT(*) = 1
+),
+FIND_OCCURANCE AS (
+    SELECT id, COUNT(*) AS c FROM REMOVED_SAME GROUP BY id
+)
+SELECT A.id, 
+CASE 
+    WHEN B.flag = 'source' THEN 'New in source'
+    ELSE 'New in target' 
+END AS comment
+FROM FIND_OCCURANCE A INNER JOIN UNION_ALL B ON A.id = B.id
+WHERE A.c = 1
+UNION ALL
+SELECT id, 'Modified' AS comment
+FROM FIND_OCCURANCE
+WHERE c > 1
+
+-- Solution-2 - Apply FULL OUTER JOIN 
+
+-- After joining, Filter records where name is same
+WITH OUTER_JOIN AS (
+    SELECT A.id AS A_id, A.name AS A_name, B.id AS B_id, B.name AS B_name
+    FROM source A FULL OUTER JOIN target B ON A.id = B.id
+    WHERE A.name != B.name OR A.name IS NULL OR B.name IS NULL
+)
+SELECT COALESCE(A_id, B_id) as id, 
+CASE 
+    WHEN A_id = B_id AND A_name <> B_name THEN 'mismatch'
+    WHEN A_id IS NOT NULL AND B_id IS NULL THEN 'New in source'
+    WHEN A_id IS NULL AND B_id IS NOT NULL THEN 'New in target'
+END AS comment
+FROM OUTER_JOIN
