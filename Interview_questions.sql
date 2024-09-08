@@ -368,3 +368,17 @@ CASE
     WHEN A_id IS NULL AND B_id IS NOT NULL THEN 'New in target'
 END AS comment
 FROM OUTER_JOIN
+
+'''
+Find out number of clocked hours be each employee in office.
+flag -> I means punch in & O means punch out. 
+Employee can have multiple punch in and punch out in a day.
+clocked_hours(empd_id int, swipe time, flag string)
+'''
+WITH FIND_LOGOUT_TIME AS (
+    SELECT empd_id, swipe as login_time, flag, LEAD(swipe) OVER(PARTITION BY empd_id ORDER BY swipe) as logout_time
+    FROM clocked_hours
+)
+SELECT empd_id, SUM(DATEDIFF(HOUR, login_time, logout_time)) AS hours 
+FROM FIND_LOGOUT_TIME WHERE flag = 'I'
+GROUP BY empd_id
