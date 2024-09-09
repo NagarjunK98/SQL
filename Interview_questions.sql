@@ -426,3 +426,64 @@ WITH FIND_FIRST_SALE AS (
 SELECT order_date, SUM(CASE WHEN rn>1 THEN 1 ELSE 0 END) AS unique_customers
 FROM FIND_FIRST_SALE GROUP BY order_date
 
+
+'''
+Find out runs scored in each over including runs scored in extra balls. Additionally add 1 run extra for each non legal delivery
+
+cricket_runs(balls_no, runs, delivery_type)
+https://www.youtube.com/watch?v=1fQ2bZAF6uY
+'''
+
+'''
+Things to consider here
+    1. We have to consider 6 legal balls as one over
+    2. Consider non legal delivery which are thrown in same over into same over runs
+    3. There may be a case first delivery of each over could be non legal delivery. Consider this also into account
+    4. Add 1 more run to each non-legal deliveries
+'''
+
+-- Solution-1 : My solution
+
+-- Add 1 run to each non legal delivery. And change delivery_type(1->legal 0-> non legal)
+WITH ADD_ONE_RUN AS (
+    SELECT ball_no,
+    CASE WHEN delivery_type = 'legal' THEN runs ELSE runs+1 END AS runs,
+    CASE WHEN delivery_type = 'legal' THEN 1 ELSE 0 END AS delivery_type
+    from cricket_runs
+),
+-- Find running sum of delivery_type (1,2,2,2,3,4,5,6,6,7,8,9)
+RUNNING_BALLS_SUM AS (
+    SELECT ball_no, runs, delivery_type, SUM(delivery_type) OVER(ORDER BY ball_no) AS running_balls
+    FROM ADD_ONE_RUN
+),
+-- There could be case where starting ball itself is non legal ball. To handle that find the rank (1st 6=1 & 2nd 6=2)
+ADD_RANK AS (
+    SELECT ball_no, runs, delivery_type, running_balls, DENSE_RANK() OVER(PARTITION BY running_balls ORDER BY ball_no) as rn
+    FROM RUNNING_BALLS_SUM
+),
+-- (1,2,2,2,3,4,5,6,6,7,8,9), In this example After 1st 6, over is complete. 2nd 6 belongs to next over, So add 1 to 6 and it becomes 7, indicating next over starting ball. sequence becomes (1,2,2,2,3,4,5,6,7,7,8,9)
+INCREMENT_RUNNING_SUM AS (
+    SELECT ball_no, runs, delivery_type,
+    CASE WHEN running_balls % 6 = 0 AND rn > 1 THEN running_balls+1
+    ELSE running_balls END AS running_balls
+    FROM ADD_RANK
+),
+-- (1,2,2,2,3,4,5,6,7,7,8,9), here 2 rows has 7. We need to consider 1st 7 as starting ball, so find rank
+ADD_RANK_1 AS (
+    SELECT ball_no, runs, delivery_type, running_balls, DENSE_RANK() OVER(PARTITION BY running_balls ORDER BY ball_no) as rn_1
+    FROM INCREMENT_RUNNING_SUM
+),
+-- if running_ball % 6 = 1, means starting of over, add 1 else 0 as new_over_start_ball
+ADD_NEW_OVER_START_BALL AS (
+    SELECT ball_no, runs, delivery_type, running_balls,
+    CASE WHEN running_balls % 6 = 1 AND rn_1=1 THEN 1 ELSE 0 END AS new_over_start_ball
+    FROM ADD_RANK_1
+),
+-- Find running sum to split overs as over_no
+ADD_OVER_NO AS (
+    SELECT runs, SUM(new_over_start_ball) OVER(ORDER BY ball_no) AS over_no
+    FROM ADD_NEW_OVER_START_BALL
+)
+-- finally aggregate based on over_no
+SELECT over_no, SUM(runs) as total_runs FROM ADD_OVER_NO 
+GROUP BY over_no ORDER BY over_no
