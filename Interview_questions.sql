@@ -382,3 +382,47 @@ WITH FIND_LOGOUT_TIME AS (
 SELECT empd_id, SUM(DATEDIFF(HOUR, login_time, logout_time)) AS hours 
 FROM FIND_LOGOUT_TIME WHERE flag = 'I'
 GROUP BY empd_id
+
+'''
+Find origin and final destination for each cid
+
+cid fid origin destination
+1   f1    Del     Hyd
+1   f2    Hyd     Blr
+2   f3    Mum     Agra
+2   f4    Agra    Kol
+
+Output
+1 Del Blr
+2 Mum Kol
+'''
+
+SELECT A.cid, A.origin FROM flights A INNER JOIN B ON A.cid=B.cid AND A.destination=B.origin
+
+'''
+Find count of new customers added in each month in sales table
+
+sales (order_date, customer, qty)
+'''
+-- Find the first order for each customer
+WITH FIND_FIRST_SALE AS (
+    SELECT order_date, customer, ROW_NUMBER() OVER(PARTITION BY customer order BY order_date) as rn
+    FROM sales
+)
+-- rn=1 -> new customer & rn>1 -> repeated customers
+SELECT order_date, SUM(CASE WHEN rn=1 THEN 1 ELSE 0 END) AS unique_customers
+FROM FIND_FIRST_SALE GROUP BY order_date
+
+'''
+Find count of repeated customers in each month in sales table
+
+sales (order_date, customer, qty)
+'''
+WITH FIND_FIRST_SALE AS (
+    SELECT order_date, customer, ROW_NUMBER() OVER(PARTITION BY customer order BY order_date) as rn
+    FROM sales
+)
+-- rn=1 -> new customer & rn>1 -> repeated customers
+SELECT order_date, SUM(CASE WHEN rn>1 THEN 1 ELSE 0 END) AS unique_customers
+FROM FIND_FIRST_SALE GROUP BY order_date
+
