@@ -487,3 +487,99 @@ ADD_OVER_NO AS (
 -- finally aggregate based on over_no
 SELECT over_no, SUM(runs) as total_runs FROM ADD_OVER_NO 
 GROUP BY over_no ORDER BY over_no
+
+
+'''
+Given job_positions & job_employee tables. Write an SQL query to display which position are filled and which are vacant
+
+job_positions(id, title, groups, levels, payscale, totalpost)
+
+job_employees(id, name, position_id)
+
+'''
+-- Solution-1
+
+-- Find all filled positions
+WITH ALREADY_FILLED AS (
+    SELECT A.id, A.title, A.groups, A.levels, A.payscale, B.name, A.totalpost FROM job_positions A INNER JOIN job_employees B 
+    ON A.id = B.position_id 
+),
+-- Find how many positions are still vacant after filling
+VACANT_POST_COUNT AS (
+    SELECT id, title, groups, levels, payscale, (totalpost-filled) as vacant_no FROM (
+        SELECT id, title, totalpost, groups, levels, payscale, COUNT(*) as filled 
+        FROM ALREADY_FILLED GROUP BY id, title, totalpost, groups, levels, payscale
+    ) A 
+    WHERE totalpost-filled > 0
+),
+-- Generate vacant position using recursive CTE 
+GENERATE_VACANT AS (
+    SELECT id, title, groups, levels, payscale, 1 AS flag, 'vacant' AS name
+    FROM VACANT_POST_COUNT
+    UNION ALL
+    SELECT A.id, A.title, A.groups, A.levels, A.payscale, flag+1 as flag, 'vacant' AS name
+    FROM GENERATE_VACANT A INNER JOIN VACANT_POST_COUNT B 
+    ON A.id=B.id AND A.flag < B.vacant_no
+)
+-- Union filled and generated vacant positions
+SELECT title, groups, levels, payscale, name from ALREADY_FILLED
+UNION ALL
+SELECT title, groups, levels, payscale, name  FROM GENERATE_VACANT
+
+
+'''
+Write sql query to build icc points table.
+icc_world_cup(match_no, team_1, team_2, winner)
+'''
+-- Solution-1
+WITH MATCHES_PLAYED AS (
+    SELECT team, COUNT(*) AS matches_played FROM (
+        SELECT team_1 AS team FROM icc_world_cup
+        UNION ALL
+        SELECT team_2 AS team FROM icc_world_cup
+    ) A 
+    GROUP BY team
+),
+WON_MATCHES AS (
+    SELECT winner, COUNT(*) AS wins FROM icc_world_cup GROUP BY winner
+)
+SELECT A.team, A.matches_played, COALESCE(B.wins, 0) AS wins, (A.matches_played - COALESCE(B.wins, 0)) AS loss 
+FROM MATCHES_PLAYED A LEFT JOIN WON_MATCHES B ON A.team = B.winner
+
+
+'''
+Write a SQL query to list companies whose revenue is increasing YOY
+
+company_revenue(company, year, revenue)
+'''
+
+-- Solution-1: Using LAG by comparing previous year revenue with current year revenue
+WITH FIND_PREVIOUS_YEAR_REVENUE as (
+    SELECT company, year, revenue, LAG(revenue, 1, 0) OVER(PARTITION BY company ORDER BY year) AS previous_year_revenue
+    FROM company_revenue
+),
+ADD_FLAG AS (
+    SELECT company,
+    CASE 
+        WHEN previous_year_revenue < revenue THEN 1
+        ELSE 0
+    END AS flag
+    FROM FIND_PREVIOUS_YEAR_REVENUE
+)
+SELECT company FROM ADD_FLAG GROUP BY company HAVING COUNT(DISTINCT flag) = 1 
+
+-- Solution-2 : Using LEAD by comparing next year revenue with current year
+WITH FIND_NEXT_YEAR_REVENUE as (
+    SELECT company, year, revenue, LEAD(revenue) OVER(PARTITION BY company ORDER BY year) AS next_year_revenue
+    FROM company_revenue
+),
+ADD_FLAG AS (
+    SELECT company,
+    CASE 
+        WHEN revenue < next_year_revenue THEN 1
+        WHEN revenue IS NOT NULL AND next_year_revenue IS NULL THEN 1
+        ELSE 0
+    END AS flag
+    FROM FIND_NEXT_YEAR_REVENUE
+)
+SELECT company FROM ADD_FLAG GROUP BY company HAVING COUNT(DISTINCT flag) = 1
