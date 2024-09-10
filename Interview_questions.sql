@@ -583,3 +583,65 @@ ADD_FLAG AS (
     FROM FIND_NEXT_YEAR_REVENUE
 )
 SELECT company FROM ADD_FLAG GROUP BY company HAVING COUNT(DISTINCT flag) = 1
+
+
+'''Write a SQL Query to fill missing transactions with qty value. At max only one transaction between them will be missing 
+
+transactions(id, qty)
+
+Input:
+1 10
+2 40
+3 33
+5 21
+6 23
+8 19
+
+Output:
+1 10
+2 40
+3 33
+4 33
+5 21
+6 23
+7 23
+8 19
+'''
+
+WITH FIND_MIN_MAX_ID AS (
+    SELECT MIN(id) AS min_id, MAX(id) AS max_id FROM transactions
+),
+GENERATE_IDS AS (
+    SELECT min_id AS id FROM FIND_MIN_MAX_ID
+    UNION ALL
+    SELECT id+1 AS id FROM GENERATE_IDS WHERE id < (SELECT max_id FROM FIND_MIN_MAX_ID)
+),
+ALL_IDS AS (
+    SELECT A.id, B.qty FROM GENERATE_IDS A LEFT JOIN transactions B ON A.id=B.id
+)
+SELECT id, COALESCE(qty, LAG(qty,1) OVER(ORDER BY id)) AS qty
+FROM ALL_IDS
+
+
+'''
+An organization is looking to hire employees for their junior and senior positions. They have total limit of 50,000$, they have to first fill up the senior positions and then fill junior positions. 
+
+candidates(id, positions, salary)
+'''
+WITH FIND_RUNNING_SALARY AS (
+    SELECT positions, salary, SUM(salary) OVER(PARTITION BY positions ORDER BY salary ASC) AS running_total
+    FROM candidates
+),
+-- COALESCE is used fill all senior have > 50,000 salary, so that they can hire juniors
+FILTER_SENIOR AS (
+    SELECT COALESCE(SUM(salary),0) AS senior_total, COUNT(*) AS senior_count 
+    FROM FIND_RUNNING_SALARY 
+    WHERE positions = 'senior' AND running_total <=50000
+),
+FILTER_JUNIOR AS (
+    SELECT SUM(salary) AS junior_salary, COUNT(*) AS junior_count
+    FROM FIND_RUNNING_SALARY
+    WHERE positions = 'junior' AND salary <= (SELECT (50000 -        senior_total) FROM FILTER_SENIOR)
+)
+SELECT A.junior_count AS juniors, B.senior_count AS seniors 
+FROM FILTER_JUNIOR A, FILTER_SENIOR B
