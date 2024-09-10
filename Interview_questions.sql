@@ -645,3 +645,75 @@ FILTER_JUNIOR AS (
 )
 SELECT A.junior_count AS juniors, B.senior_count AS seniors 
 FROM FILTER_JUNIOR A, FILTER_SENIOR B
+
+
+'''
+Write SQL to print employee_id, default phone no, totalentry, totallogin, tottalogout, latest login, latest logout
+
+employee_checking_details(employeeid, entry_details, timestamp_details)
+
+employee_details(employeeid, phone_number , isdefault)
+'''
+
+-- Solution-1 : Not optimized
+
+WITH LOG_COUNT AS (
+  SELECT employeeid, entry_details, COUNT(*) AS log_count 
+  from employee_checking_details 
+  GROUP BY employeeid, entry_details
+),
+PIVOT_DATA_LOG_COUNT AS (
+  SELECT employeeid, login AS login_count, logout AS logout_count, (login+logout) AS totalentry FROm (
+      SELECT employeeid, entry_details, log_count
+      FROM LOG_COUNT
+  ) AS TEMP
+  PIVOT (
+  MAX(log_count)
+  FOR entry_details IN ([login], [logout])
+  ) AS A
+),
+LATEST_LOG_TIME AS (
+  SELECT employeeid, entry_details, MAX(timestamp_details) as latest_time FROM employee_checking_details
+  GROUP BY employeeid, entry_details
+),
+PIVOT_LATEST_LOG_TIME AS (
+  SELECT employeeid, login AS latest_login, logout AS latest_logout FROM (
+      SELECT employeeid, entry_details, latest_time
+      FROM LATEST_LOG_TIME
+  ) AS TEMP
+  PIVOT (
+      MAX(latest_time)
+      FOR entry_details IN ([login], [logout])
+  ) AS A
+),
+JOINED_DATA AS (
+  SELECT A.employeeid, A.totalentry, A.login_count, A.logout_count, B.latest_login, B.latest_logout
+  FROM PIVOT_DATA_LOG_COUNT A INNER JOIN PIVOT_LATEST_LOG_TIME B ON A.employeeid = B.employeeid
+),
+DEFAULT_PHONE_NO AS (
+	SELECT employeeid, phone_number FROM employee_details WHERE isdefault = 1
+)
+SELECt A.employeeid, A.totalentry, A.login_count, A.logout_count, A.latest_login, A.latest_logout, B.phone_number
+FROM JOINED_DATA A LEFT JOIN DEFAULT_PHONE_NO B ON A.employeeid = B.employeeid
+
+-- Solution-2 : Optimized approach
+
+-- employee_id, def phone, totelentry, totallogin, tottalogout, latest login, latest logout
+WITH LOGIN_DETAILS AS (
+  SELECT employeeid, COUNT(*) AS login_count, MAX(timestamp_details) As latest_login
+  FROM employee_checking_details 
+  WHERE entry_details = 'login'
+  GROUP BY employeeid
+),
+LOGOUT_DETAILS AS (
+  SELECT employeeid, COUNT(*) AS logout_count, MAX(timestamp_details) As latest_logout
+  FROM employee_checking_details 
+  WHERE entry_details = 'logout'
+  GROUP BY employeeid
+),
+JOINED_DATA AS (
+  SELECT A.employeeid, A.login_count, B.logout_count, (A.login_count+B.logout_count) AS totalentry, A.latest_login, B.latest_logout
+  FROM LOGIN_DETAILS A INNER JOIN LOGOUT_DETAILS B ON A.employeeid = B.employeeid
+)
+SELECt A.employeeid, A.totalentry, A.login_count, A.logout_count, A.latest_login, A.latest_logout, B.phone_number
+FROM JOINED_DATA A LEFT JOIN employee_details B ON A.employeeid = B.employeeid AND B.isdefault = 1
