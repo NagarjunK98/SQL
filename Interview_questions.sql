@@ -608,6 +608,7 @@ Output:
 8 19
 '''
 
+-- Solution-1 : Used recursive cte to generate numbers
 WITH FIND_MIN_MAX_ID AS (
     SELECT MIN(id) AS min_id, MAX(id) AS max_id FROM transactions
 ),
@@ -622,6 +623,21 @@ ALL_IDS AS (
 SELECT id, COALESCE(qty, LAG(qty,1) OVER(ORDER BY id)) AS qty
 FROM ALL_IDS
 
+-- Solution-2: Used sub query to find missing no
+WITH FIND_MISSING_NO AS (
+    SELECT id+1 AS id FROM transactions 
+    WHERE id+1 NOT IN ( SELECT id from transactions)
+),
+FILTER_NO AS (
+    SELECT id, null as qty FROM FIND_MISSING_NO WHERE id < (SELECT MAX(id) FROM transactions)
+),
+UNION_ALL AS (
+    SELECT id, qty FROM transactions
+    UNION ALL
+    SELECT id, qty FROM FILTER_NO
+)
+SELECT id, COALESCE(qty, LAG(qty) OVER(ORDER BY id)) AS qty
+FROM UNION_ALL
 
 '''
 An organization is looking to hire employees for their junior and senior positions. They have total limit of 50,000$, they have to first fill up the senior positions and then fill junior positions. 
