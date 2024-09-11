@@ -717,3 +717,26 @@ JOINED_DATA AS (
 )
 SELECt A.employeeid, A.totalentry, A.login_count, A.logout_count, A.latest_login, A.latest_logout, B.phone_number
 FROM JOINED_DATA A LEFT JOIN employee_details B ON A.employeeid = B.employeeid AND B.isdefault = 1
+
+
+'''
+Write SQL query to print min & max population in each state
+
+city_population(state, city, population)
+'''
+
+WITH MIN_POPULATION AS (
+  SELECT state, min_city, population FROM (
+    SELECT state, city AS min_city, population, RANK() OVER(PARTITION BY state ORDER by population) AS min_rk
+    from city_population
+    ) A
+  WHERE min_rk = 1 
+),
+MAX_POPULATION AS (
+  SELECT state, max_city, population FROM (
+    SELECT state, city AS max_city, population, RANK() OVER(PARTITION BY state ORDER by population DESC) AS max_rk
+    from city_population
+    ) A
+  WHERE max_rk = 1 
+)
+SELECT A.state, A.min_city, B.max_city FROM MIN_POPULATION A INNER JOIN MAX_POPULATION B ON A.state = B.state
