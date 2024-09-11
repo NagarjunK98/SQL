@@ -783,3 +783,22 @@ SELECT department_id FROM (
     FROM FIND_EXCEPT_DEPT
 ) A 
 WHERE expt_dept_avg > dept_avg
+
+
+'''
+Write SQL query to find all couples of trade for same stock that happened in range of 10 seconds and having price difference by more than 10% 
+
+Trades(trade_id, trade_timestamp, trade_stock, quantity, price)
+'''
+WITH TRADES_LIST AS (
+    SELECT A.TRADE_ID AS first_trade, B.TRADE_ID AS second_trade, A.Trade_Timestamp AS trade_A_ts, B.Trade_Timestamp AS trade_B_ts,
+    A.Price AS first_trade_price, B.Price AS second_trade_price
+    FROM Trades A INNER JOIN Trades B ON A.Trade_Stock = B.Trade_Stock
+    WHERE A.TRADE_ID < B.TRADE_ID
+)
+SELECT first_trade, second_trade, first_trade_price, second_trade_price, percentdiff FROM (
+    SELECT first_trade, second_trade, first_trade_price, second_trade_price, ROUND(ABS(100.0*(first_trade_price-second_trade_price)/first_trade_price), 2) AS percentdiff
+    FROM TRADES_LIST
+    WHERE ABS(DATEDIFF(second, trade_A_ts, trade_B_ts)) < 10
+) A 
+WHERE percentdiff > 10
