@@ -608,7 +608,7 @@ Output:
 8 19
 '''
 
--- Solution-1 : Used recursive cte to generate numbers
+-- Solution-1 : Used recursive cte to generate numbers.WE can generate upto 100 numbers due to recursive cte limitations
 WITH FIND_MIN_MAX_ID AS (
     SELECT MIN(id) AS min_id, MAX(id) AS max_id FROM transactions
 ),
@@ -756,3 +756,30 @@ MAX_POPULATION AS (
   WHERE max_rk = 1 
 )
 SELECT A.state, A.min_city, B.max_city FROM MIN_POPULATION A INNER JOIN MAX_POPULATION B ON A.state = B.state
+
+
+'''
+Write SQL query to list department with average salary lower tan average salary of company.
+However, when calculating company average salary, you must exclude salaries of department you are comparing it with.
+
+Example - when comparing average salary of HR dept with company avg, HR dept salaries should not taken into consideration.
+'''
+
+-- Solution-1
+
+WITH DEPT_LEVEL AS (
+    SELECT department_id, COUNT(*) as emp_count, SUM(salary) AS salary_sum, AVG(salary) AS dept_avg
+    FROM emp GROUP BY department_id
+),
+-- UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING consider all rows to give SUM, So minus total with current row dept salary
+FIND_EXCEPT_DEPT AS (
+    SELECT department_id, emp_count, salary_sum, dept_avg,
+    SUM(salary_sum) OVER(ORDER BY department_id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) - salary_sum AS expt_dept_sum,
+    SUM(emp_count) OVER(ORDER BY department_id ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) - emp_count AS expt_dept_count
+    FROM DEPT_LEVEL
+)
+SELECT department_id FROM (
+    SELECT department_id, dept_avg, (1.0*expt_dept_sum/expt_dept_count) as expt_dept_avg
+    FROM FIND_EXCEPT_DEPT
+) A 
+WHERE expt_dept_avg > dept_avg
