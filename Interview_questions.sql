@@ -855,4 +855,14 @@ from orders
 GROUP BY grouping sets((continent, country), (city))
 
 
-
+'''
+Write a SQL query to swap seat id every 2 consecutive seats. IF number of seats is odd, then id of the last seat is not swapped 
+'''
+SELECT id, student, 
+CASE 
+    WHEN id%2 = 0 THEN id-1 
+    WHEN id%2 = 1 AND id = (SELECT MAX(id) FROM seats) THEN id 
+    ELSE id+1
+END AS new_id
+FROM seats
+ORDER BY new_id
