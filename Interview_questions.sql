@@ -802,3 +802,32 @@ SELECT first_trade, second_trade, first_trade_price, second_trade_price, percent
     WHERE ABS(DATEDIFF(second, trade_A_ts, trade_B_ts)) < 10
 ) A 
 WHERE percentdiff > 10
+
+
+'''
+Write SQL query to merge overlapping events in same hall
+
+hall_events(hall_id, start_date, end_date)
+'''
+
+-- Solution-1: Using recursive cte
+WITH ADD_ROW_NO AS (
+	SELECT hall_id, start_date, end_date, 
+    ROW_NUMBER() OVER(ORDER BY hall_id, start_date) AS event_id
+  	FROM hall_events
+),
+RECURSIVE_CTE AS (
+    SELECT hall_id, start_date, end_date, event_id, 1 AS flag 
+    FROM ADD_ROW_NO WHERE event_id = 1
+    UNION ALL
+    SELECT A.hall_id, A.start_date, A.end_date, A.event_id,
+    CASE 
+        WHEN A.hall_id = B.hall_id AND 
+        ((A.start_date BETWEEN B.start_date AND B.end_date) OR (B.start_date BETWEEN A.start_date AND A.end_date)) 
+        THEN 0 ELSE 1 
+    END + flag AS flag
+    FROM ADD_ROW_NO A INNER JOIN RECURSIVE_CTE B 
+    ON A.event_id = B.event_id + 1 
+)
+SELECT hall_id, MIN(start_date) AS start_date, MAX(end_date) AS end_date
+FROM RECURSIVE_CTE GROUP BY hall_id, flag
