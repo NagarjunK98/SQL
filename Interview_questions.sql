@@ -831,3 +831,28 @@ RECURSIVE_CTE AS (
 )
 SELECT hall_id, MIN(start_date) AS start_date, MAX(end_date) AS end_date
 FROM RECURSIVE_CTE GROUP BY hall_id, flag
+
+
+'''
+In reporting, we need aggregate at different levels. To solve this we can use rollup, cube, grouping sets
+'''
+-- rollup (output: ((continent, null, null), (continent, country, null), (continent, country, city), (null, null, null))
+SELECT continent, country, city, SUM(amount) as total
+from orders
+GROUP BY rollup(continent, country, city)
+
+-- cube (output: ((continent, null, null), (null, country, null), (null, null, city), (continent, country, null), (continent, null, city), (null, country, city) (continent, country, city), (null, null, null))
+
+-- cube will give all combinations
+SELECT continent, country, city, SUM(amount) as total
+from orders
+GROUP BY cube(continent, country, city)
+
+
+-- grouping sets will give specified combinations
+SELECT continent, country, city, SUM(amount) as total
+from orders
+GROUP BY grouping sets((continent, country), (city))
+
+
+
