@@ -32,3 +32,13 @@ FROM Prices A INNER JOIN UnitsSold B ON a.product_id = B.product_id AND B.purcha
 SELECT product_id, ROUND(SUM(units*price)/(sum(units)*1.0),2) AS average_price
 FROM JOINED_DATA
 GROUP BY product_id
+
+
+# Pyspark Solution
+from pyspark.sql.functions import round, sum, col
+
+joined_df = prices.join(units_sold, (prices.product_id == units_sold.product_id ) \
+                                    & (units_sold.purchase_date between prices.start_date and prices.end_date)
+                        )
+res_df = joined_df.groupBy("product_id").agg(round(sum(col("units")*col("price"))/sum(col("units")), 2).alias("average_price"))
+res_df.show()

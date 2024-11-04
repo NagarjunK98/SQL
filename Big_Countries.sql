@@ -8,3 +8,9 @@ A country is big if:
 # Solution - 1 -> Using conditions
 
 SELECT NAME, POPULATION, AREA FROM WORLD WHERE AREA >=3000000 OR POPULATION >=25000000
+
+
+# Pyspark solution
+
+res_df = df.filter(col("area") >= 3000000 | col("population") >= 25000000) \
+            .select("name", "population", "area")

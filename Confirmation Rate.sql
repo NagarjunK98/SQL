@@ -44,3 +44,17 @@ END AS confirmation_rate
 FROM JOINED_DATA_1 
 ORDER BY user_id
 
+# Pyspark solution
+
+joined_df = signups.alias("A").join(confirmations.alias("B"), signups.user_id == confirmations.user_id, "leftouter") \
+                .select("A.user_id", "B.action", "A.time_stamp")
+
+grp_df = joined_df.groupBy("user_id") \
+            .agg(
+                sum(when(col("action") == "confirmed", 1).otherwise(0)).alias("confirmed"),
+                sum(when(col("action") == "timeout", 1).otherwise(0).alias("timeout"))
+            )
+
+res_df = grp_df.withColumn("confirmation_rate", when((col("confirmed") == 0 & col("timeout") == 0), 0) \
+                                                .otherwise(round(col("confirmed")/(col("confirmed")+ col("timeout"))))
+    ).select("user_id", "confirmation_rate")

@@ -37,3 +37,17 @@ SELECT machine_id, process_id,
  )
  
  SELECT machine_id, ROUND(AVG(E_T - S_T), 3) AS processing_time FROM PIVOT_DATA GROUP BY machine_id
+
+
+# Pyspark solution
+
+from pyspark.sql.functions import round, avg, max, lit, col
+
+grp_df = df.groupBy("machine_id", "process_id") \
+            .agg(
+                max(when(col("activity_type") == lit("start"), col("timestamp"))).alias("S_T"), 
+                max(when(col("activity_type") == lit("end"), col("timestamp"))).alias("E_T")
+            )
+res_df = grp_df.groupBy("machine_id") \
+            .agg(round(avg(col("E_T") - col("S_T")), 3).alias("processing_time")) \
+            .select("machine_id", "processing_time")
