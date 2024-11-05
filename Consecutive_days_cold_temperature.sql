@@ -15,3 +15,16 @@ SELECT *,
 FROM weather
 )
 SELECT * FROM find_consecutive_days WHERE FLAG='Y'
+
+# PySpark solution
+
+from pyspark.sql import Window
+
+window = Window.orderBy("id")
+
+weather_df = df.withColumn("flag", when(col("temperature") < 0 & lead(temperature, 1).over(window) < 0 & lead(temperature, 2).over(window) < 0, 'Y'),
+								   when(col("temperature") < 0 & lag(temperature, 1).over(window) < 0 & lead(temperature, 2).over(window) < 0, 'Y'),
+								   when(col("temperature") < 0 & lag(temperature, 1).over(window) < 0 & lag(temperature, 2).over(window) < 0, 'Y')
+								   .otherwise("N")
+			)
+res_df = weather_df.filter(col("flag") == 'Y')
