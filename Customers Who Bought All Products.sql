@@ -25,3 +25,15 @@ GROUP BY customer_id
 )
 SELECT customer_id FROM AGG_DATA
 WHERE CNS = (SELECT COUNT(*) FROM Product)
+
+# Pyspark solution
+
+agg_data = (
+    customer_df
+    .groupBy("customer_id")
+    .agg(F.countDistinct("product_key").alias("CNS"))
+)
+
+total_products_count = product_df.select(F.count("*").alias("total_count")).collect()[0]["total_count"]
+
+result = agg_data.filter(F.col("CNS") == total_products_count).select("customer_id")

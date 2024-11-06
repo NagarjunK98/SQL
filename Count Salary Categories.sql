@@ -60,6 +60,29 @@ CATEGORY AS (
     SELECT 'High Salary' AS cagr
 )
 SELECT A.cagr AS category, 
-CASE WHEN B.category IS NULL THEN 0 ELSE accounts_count END AS accounts_count
+SUM(CASE WHEN B.category IS NULL THEN 0 ELSE accounts_count END) AS accounts_count
 FROM CATEGORY A LEFT JOIN ADD_FLAG B
 ON A.cagr = B.category
+GROUP BY A.cagr
+
+
+# Pyspark solution
+
+from pyspark.sql.functions import when, col, sum
+
+category_df = df.withColumn("category", when(col("income") < 20000, 'Low Salary')
+                                        .when(col("income") >= 20000 & col("income") <= 50000, 'Average Salary')
+                                        .otherwise('High Salary')
+                    )
+categories = [("Low Salary",), ("Average Salary",), ("High Salary")]
+
+cat_map = spark.createDataFrame(categories, columns=["category"])
+
+
+res_df = cat_map.alias("A").join(category_df.alias("B"), A.category==B.category, "left")
+                    .withColumn("flag", when(col("B.category").isNull(), 0)
+                    .otherwise(1)
+                    )
+                    .select("A.category", "flag")
+                    .agg(sum(col("flag")).alias("accounts_count")
+                    )
